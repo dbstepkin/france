@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Вопросы викторины</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/quest/quest.css" />
+</head>
+<body>
+  <main class="admin">
+    <header>
+      <div>
+        <div class="flag"><i></i><i></i><i></i></div>
+        <h1>Вопросы викторины</h1>
+      </div>
+      <a href="/quest">Экран викторины →</a>
+    </header>
+    <p class="help">
+      <b>Слово</b> — участники пишут ответ текстом, итог показывается облаком тегов.<br />
+      <b>Число</b> — итог на шкале: какие числа назвал зал (анонимно) и где правильный ответ. Правильный ответ можно указать числом
+      (<code>2013</code>) или диапазоном (<code>1200–1600</code>).<br />
+      Порядок меняется стрелками или перетаскиванием за номер.
+    </p>
+
+    <div class="qlist" id="list"></div>
+    <p><button class="ghost" id="add" type="button">+ Добавить вопрос</button></p>
+  </main>
+
+  <div class="savebar">
+    <span class="status" id="status"></span>
+    <button id="save" type="button">Сохранить</button>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let qs = [];
+    let dirty = false;
+
+    function setStatus(t) { $('status').textContent = t; }
+    function markDirty() { dirty = true; setStatus('Есть несохранённые изменения'); }
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    }
+
+    function render() {
+      const list = $('list');
+      list.innerHTML = '';
+      qs.forEach((q, i) => {
+        const card = document.createElement('div');
+        card.className = 'qcard';
+        card.dataset.i = i;
+        card.innerHTML = `
+          <div class="num" draggable="true" title="Перетащите, чтобы переставить">${i + 1}</div>
+          <div class="fields">
+            <textarea data-f="text" placeholder="Текст вопроса">${esc(q.text)}</textarea>
+            <div class="row">
+              <select data-f="type">
+                <option value="word"${q.type !== 'number' ? ' selected' : ''}>Слово</option>
+                <option value="number"${q.type === 'number' ? ' selected' : ''}>Число</option>
+              </select>
+              <input data-f="correct" value="${esc(q.correct)}"
+                placeholder="${q.type === 'number' ? 'Правильный ответ: 2013 или 1200–1600' : 'Правильный ответ (необязательно)'}" />
+            </div>
+          </div>
+          <div class="tools">
+            <button class="ghost" data-act="up" title="Выше" ${i === 0 ? 'disabled' : ''}>↑</button>
+            <button class="ghost" data-act="down" title="Ниже" ${i === qs.length - 1 ? 'disabled' : ''}>↓</button>
+            <button class="ghost" data-act="del" title="Удалить">✕</button>
+          </div>`;
+        list.appendChild(card);
+      });
+    }
+
+    function move(from, to) {
+      if (to < 0 || to >= qs.length || from === to) return;
+      const [q] = qs.splice(from, 1);
+      qs.splice(to, 0, q);
+      markDirty();
+      render();
+    }
+
+    $('list').addEventListener('input', (e) => {
+      const f = e.target.dataset.f;
+      const card = e.target.closest('.qcard');
+      if (!f || !card) return;
+      qs[+card.dataset.i][f] = e.target.value;
+      markDirty();
+      if (f === 'type') render();
+    });
+
+    $('list').addEventListener('click', (e) => {
+      const act = e.target.dataset.act;
+      const card = e.target.closest('.qcard');
+      if (!act || !card) return;
+      const i = +card.dataset.i;
+      if (act === 'up') move(i, i - 1);
+      if (act === 'down') move(i, i + 1);
+      if (act === 'del' && confirm('Удалить вопрос «' + (qs[i].text || 'без текста').slice(0, 60) + '»?')) {
+        qs.splice(i, 1);
+        markDirty();
+        render();
+      }
+    });
+
+    // перетаскивание за номер
+    let dragFrom = null;
+    $('list').addEventListener('dragstart', (e) => {
+      const card = e.target.closest('.qcard');
+      dragFrom = +card.dataset.i;
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', String(dragFrom));
+    });
+    $('list').addEventListener('dragover', (e) => {
+      const card = e.target.closest('.qcard');
+      if (dragFrom == null || !card) return;
+      e.preventDefault();
+      document.querySelectorAll('.qcard.over').forEach((c) => c.classList.remove('over'));
+      card.classList.add('over');
+    });
+    $('list').addEventListener('drop', (e) => {
+      const card = e.target.closest('.qcard');
+      if (dragFrom == null || !card) return;
+      e.preventDefault();
+      move(dragFrom, +card.dataset.i);
+      dragFrom = null;
+    });
+    $('list').addEventListener('dragend', () => {
+      dragFrom = null;
+      document.querySelectorAll('.qcard').forEach((c) => c.classList.remove('dragging', 'over'));
+    });
+
+    $('add').onclick = () => {
+      qs.push({ id: '', type: 'word', text: '', correct: '' });
+      markDirty();
+      render();
+      const t = document.querySelectorAll('.qcard textarea');
+      t[t.length - 1].focus();
+    };
+
+    $('save').onclick = async () => {
+      const empty = qs.findIndex((q) => !q.text.trim());
+      if (empty >= 0) return setStatus('У вопроса ' + (empty + 1) + ' нет текста');
+      $('save').disabled = true;
+      setStatus('Сохраняю…');
+      try {
+        const r = await fetch('/api/quest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'save', questions: qs }),
+        });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || 'Ошибка');
+        qs = j.questions;
+        dirty = false;
+        render();
+        setStatus('Сохранено ✓');
+      } catch (e) {
+        setStatus('Не сохранилось: ' + e.message);
+      } finally {
+        $('save').disabled = false;
+      }
+    };
+
+    addEventListener('beforeunload', (e) => {
+      if (dirty) e.preventDefault();
+    });
+
+    fetch('/api/quest?view=questions', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.error) throw new Error(j.error);
+        qs = j.questions;
+        render();
+      })
+      .catch((e) => setStatus('Не загрузилось: ' + e.message));
+  </script>
+</body>
+</html>

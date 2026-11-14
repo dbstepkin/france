@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Викторина о Франции</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/quest/quest.css" />
+</head>
+<body>
+  <div class="qhost">
+    <div class="qbar" id="bar" hidden>
+      <div class="flag"><i></i><i></i><i></i></div>
+      <span class="progress" id="progress"></span>
+      <span class="count" id="barCount"></span>
+      <span class="spacer"></span>
+      <div class="mini"><span><b id="hostShort"></b>/quest/play</span><div class="qrs" id="qrSmall"></div></div>
+    </div>
+
+    <main class="qmain" id="main"></main>
+
+    <div class="qfoot">
+      <span class="hint" id="hint"></span>
+      <span class="err" id="err"></span>
+      <button class="ghost" id="prev" hidden>← Назад</button>
+      <button class="ghost" id="reopen" hidden>Открыть ответы снова</button>
+      <button id="primary" hidden></button>
+    </div>
+  </div>
+
+  <script src="/qrcode.js"></script>
+  <script src="/cloud.js"></script>
+  <script src="/quest/scale.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const playUrl = location.origin + '/quest/play';
+    let data = null;
+    let shownKey = '';
+    let busy = false;
+
+    function plural(n, one, few, many) {
+      const m10 = n % 10, m100 = n % 100;
+      if (m10 === 1 && m100 !== 11) return one;
+      if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+      return many;
+    }
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    }
+    function qrSvg() {
+      const qr = qrcode(0, 'M');
+      qr.addData(playUrl);
+      qr.make();
+      return qr.createSvgTag({ cellSize: 8, margin: 0, scalable: true });
+    }
+    $('qrSmall').innerHTML = qrSvg();
+    $('hostShort').textContent = location.host;
+
+    // ---------- отрисовка ----------
+    function render(force) {
+      const { state, questions, players, count, result } = data;
+      const q = questions[state.idx];
+      const total = questions.length;
+      const key = [state.run, state.idx, state.phase, q && q.id, result ? 1 : 0].join('|');
+
+      $('bar').hidden = state.phase === 'lobby';
+      $('progress').textContent = q && state.phase !== 'end' ? `Вопрос ${state.idx + 1} из ${total}` : '';
+      $('barCount').innerHTML =
+        state.phase === 'question' || state.phase === 'reveal'
+          ? `<b>${count}</b> ${plural(count, 'ответ', 'ответа', 'ответов')} · ${players} ${plural(players, 'участник', 'участника', 'участников')}`
+          : '';
+
+      // кнопки
+      $('prev').hidden = state.phase === 'lobby';
+      $('reopen').hidden = state.phase !== 'reveal';
+      const p = $('primary');
+      p.hidden = false;
+      if (state.phase === 'lobby') p.textContent = total ? 'Начать викторину' : 'Добавьте вопросы в админке';
+      else if (state.phase === 'question') p.textContent = 'Показать ответы';
+      else if (state.phase === 'reveal') p.textContent = state.idx + 1 >= total ? 'Завершить' : 'Следующий вопрос →';
+      else p.textContent = 'Начать заново';
+      p.disabled = state.phase === 'lobby' && !total;
+      $('hint').innerHTML = state.phase === 'lobby' ? '<a href="/quest/admin" style="color:inherit">Редактировать вопросы</a>' : 'Пробел — следующий шаг';
+
+      if (!force && key === shownKey) {
+        // обновляем только живые счётчики, не перерисовывая экран
+        if (state.phase === 'question') {
+          const b = document.querySelector('#liveCount');
+          if (b) b.textContent = count;
+          const l = document.querySelector('#liveLabel');
+          if (l) l.textContent = plural(count, 'ответ', 'ответа', 'ответов');
+        }
+        if (state.phase === 'lobby') renderPlayers(players);
+        return;
+      }
+      shownKey = key;
+      const main = $('main');
+
+      if (state.phase === 'lobby') {
+        main.innerHTML = `
+          <section class="lobby">
+            <div>
+              <div class="flag"><i></i><i></i><i></i></div>
+              <h1>Викторина о Франции</h1>
+              <div class="lead">Наведите камеру телефона на QR-код. Ответы анонимные, победителей нет — просто интересно, что думает зал.</div>
+              <div class="bigcount" style="margin-top:4vh"><b id="pCount">0</b><span id="pLabel">участников</span></div>
+            </div>
+            <div class="qrbox">
+              <div class="qr">${qrSvg()}</div>
+              <div class="url"><b>${esc(location.host)}</b>/quest/play</div>
+            </div>
+          </section>`;
+        renderPlayers(players);
+        return;
+      }
+
+      if (state.phase === 'end') {
+        main.innerHTML = `<section class="theend"><div><div class="flag" style="margin:0 auto 30px"><i></i><i></i><i></i></div><h1>Merci!</h1><p>Викторина окончена</p></div></section>`;
+        return;
+      }
+
+      const long = q.text.length > 110 ? ' long' : '';
+      if (state.phase === 'question') {
+        main.innerHTML = `
+          <section class="asking">
+            <span class="typebadge">${q.type === 'number' ? 'Ответ — число' : 'Ответ — слово'}</span>
+            <h2 class="qtext${long}">${esc(q.text)}</h2>
+            <div class="bigcount"><b id="liveCount">${count}</b><span id="liveLabel">${plural(count, 'ответ', 'ответа', 'ответов')}</span></div>
+          </section>`;
+        return;
+      }
+
+      // reveal
+      const r = result;
+      const correct = r && r.correctText ? `<span class="correct">Правильный ответ: ${esc(r.correctText)}</span>` : '';
+      main.innerHTML = `
+        <section class="reveal">
+          <h2 class="qtext">${esc(q.text)}</h2>
+          ${r && r.type === 'word' ? correct : ''}
+          <div class="stage" id="stage"></div>
+        </section>`;
+      const stage = $('stage');
+      if (!r) stage.innerHTML = '<div class="empty">Нет данных</div>';
+      else if (r.type === 'number') {
+        if (!r.answers.length) stage.innerHTML = '<div class="empty">Никто не ответил</div>';
+        else renderScale(stage, r);
+      } else {
+        if (!r.cloud || !r.cloud.clusters.length) stage.innerHTML = '<div class="empty">Никто не ответил</div>';
+        else renderCloud(stage, r.cloud);
+      }
+    }
+
+    function renderPlayers(n) {
+      if (!$('pCount')) return;
+      $('pCount').textContent = n;
+      $('pLabel').textContent = plural(n, 'участник', 'участника', 'участников');
+    }
+
+    // ---------- сеть ----------
+    async function load() {
+      try {
+        const r = await fetch('/api/quest?view=host', { cache: 'no-store' });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error);
+        data = j;
+        $('err').textContent = '';
+        render();
+      } catch (e) {
+        $('err').textContent = e.message;
+      }
+    }
+
+    async function control(op) {
+      if (busy) return;
+      busy = true;
+      document.querySelectorAll('.qfoot button').forEach((b) => (b.disabled = true));
+      if (op === 'reveal') {
+        const st = $('main').querySelector('.bigcount span');
+        if (st) st.textContent = '· собираем ответы…';
+      }
+      try {
+        const r = await fetch('/api/quest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'control', op }),
+        });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error);
+        data = j;
+        $('err').textContent = '';
+        render(true);
+      } catch (e) {
+        $('err').textContent = e.message;
+      } finally {
+        busy = false;
+        document.querySelectorAll('.qfoot button').forEach((b) => (b.disabled = false));
+        if (data) render();
+      }
+    }
+
+    function primaryOp() {
+      const ph = data && data.state.phase;
+      if (ph === 'lobby') return 'start';
+      if (ph === 'question') return 'reveal';
+      if (ph === 'reveal') return 'next';
+      if (ph === 'end') return confirm('Начать викторину заново? Все ответы будут сброшены.') ? 'restart' : null;
+      return null;
+    }
+
+    $('primary').onclick = () => {
+      const op = primaryOp();
+      if (op) control(op);
+    };
+    $('prev').onclick = () => control('prev');
+    $('reopen').onclick = () => control('reopen');
+    addEventListener('keydown', (e) => {
+      if (e.target.closest('input,textarea')) return;
+      if (e.code === 'Space' || e.code === 'ArrowRight') {
+        e.preventDefault();
+        const op = primaryOp();
+        if (op) control(op);
+      }
+      if (e.code === 'ArrowLeft') control('prev');
+    });
+
+    let rt;
+    addEventListener('resize', () => {
+      clearTimeout(rt);
+      rt = setTimeout(() => data && render(true), 150);
+    });
+
+    load();
+    setInterval(() => !busy && load(), 1500);
+  </script>
+</body>
+</html>

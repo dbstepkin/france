@@ -1,10 +1,13 @@
-import { snapshot, readResult } from '../lib/store.js';
+import { pollState } from '../lib/store.js';
 
 export async function GET() {
-  const snap = await snapshot();
-  const cloud = await readResult(snap.resultBlob);
-  return Response.json(
-    { pollId: snap.pollId, count: snap.answers.length, finished: !!cloud, cloud },
-    { headers: { 'Cache-Control': 'no-store' } },
-  );
+  try {
+    const s = await pollState();
+    return Response.json(
+      { pollId: s.pollId, count: s.count, finished: !!s.result, cloud: s.result },
+      { headers: { 'Cache-Control': 'no-store' } },
+    );
+  } catch (e) {
+    return Response.json({ error: String(e.message || e) }, { status: 500 });
+  }
 }

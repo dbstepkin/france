@@ -38,7 +38,10 @@ http
         return res.end(Buffer.from(await r.arrayBuffer()));
       }
       let p = url.pathname === '/' ? '/index.html' : url.pathname;
-      if (!path.extname(p)) p += '.html';
+      if (!path.extname(p)) {
+        const dir = path.join(root, 'public', p);
+        p = fs.existsSync(path.join(dir, 'index.html')) ? p.replace(/\/$/, '') + '/index.html' : p + '.html';
+      }
       const file = path.join(root, 'public', p);
       if (!file.startsWith(path.join(root, 'public')) || !fs.existsSync(file)) return res.writeHead(404).end('Not found');
       res.writeHead(200, { 'Content-Type': types[path.extname(file)] || 'application/octet-stream' });

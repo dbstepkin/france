@@ -1,4 +1,4 @@
-import { snapshot, addAnswer } from '../lib/store.js';
+import { pollState, addAnswer } from '../lib/store.js';
 
 export async function POST(request) {
   let body;
@@ -13,8 +13,8 @@ export async function POST(request) {
     .map((w) => String(w ?? '').replace(/\s+/g, ' ').trim().slice(0, 40));
   if (!words.some(Boolean)) return Response.json({ error: 'Введите хотя бы одно слово' }, { status: 400 });
 
-  const snap = await snapshot();
-  if (snap.resultBlob) return Response.json({ error: 'Опрос уже завершён' }, { status: 409 });
+  const s = await pollState();
+  if (s.result) return Response.json({ error: 'Опрос уже завершён' }, { status: 409 });
 
   await addAnswer(words);
   return Response.json({ ok: true });

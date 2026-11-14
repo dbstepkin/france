@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a1030" />
+  <title>Викторина о Франции</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/quest/quest.css" />
+</head>
+<body>
+  <main class="play">
+    <div class="top">
+      <div class="flag"><i></i><i></i><i></i></div>
+      <span>Анонимно</span>
+    </div>
+    <div id="view" style="display:flex;flex-direction:column;flex:1">
+      <div class="center"><div class="spinner"></div></div>
+    </div>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    // Случайный id устройства — только чтобы один телефон давал один ответ на вопрос и мог его поправить.
+    let pid = null;
+    try { pid = localStorage.getItem('fq-pid'); } catch {}
+    if (!pid) {
+      pid = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      try { localStorage.setItem('fq-pid', pid); } catch {}
+    }
+    let data = null;
+    let shownKey = '';
+    let editing = false;
+    let joining = false;
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    }
+    function fmt(v) {
+      return typeof v === 'number' ? v.toLocaleString('ru-RU', { maximumFractionDigits: 2 }) : v;
+    }
+
+    async function post(body) {
+      const r = await fetch('/api/quest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pid, ...body }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || 'Ошибка');
+      return j;
+    }
+
+    function render(force) {
+      if (!data) return;
+      const v = $('view');
+      const { state, question: q, total, mine } = data;
+      const key = [state.run, state.idx, state.phase, q && q.id, mine, editing].join('|');
+      if (!force && key === shownKey) return;
+      shownKey = key;
+
+      if (state.phase === 'lobby') {
+        v.innerHTML = `<div class="center"><div class="big">🥖</div><h1>Bonjour!</h1><p>Вы в игре. Ждём начала викторины — смотрите на экран.</p></div>`;
+        return;
+      }
+      if (state.phase === 'end') {
+        v.innerHTML = `<div class="center"><div class="big">🇫🇷</div><h1>Merci!</h1><p>Викторина окончена.</p></div>`;
+        return;
+      }
+
+      const long = q.text.length > 110 ? ' class="long"' : '';
+      const head = `<p style="margin:18px 0 0">Вопрос ${state.idx + 1} из ${total}</p><h1${long}>${esc(q.text)}</h1>`;
+
+      if (state.phase === 'reveal') {
+        v.innerHTML = head +
+          (mine != null ? `<div class="mine"><small>Ваш ответ</small>${esc(fmt(mine))}</div>` : '') +
+          `<p>Ответы закрыты. Смотрите на экран!</p>`;
+        return;
+      }
+
+      // phase === 'question'
+      if (mine != null && !editing) {
+        v.innerHTML = head + `<div class="mine"><small>Ответ принят</small>${esc(fmt(mine))}</div>
+          <p>Можно изменить, пока ведущий не закрыл приём ответов.</p>
+          <button class="ghost" id="edit">Изменить ответ</button>`;
+        $('edit').onclick = () => { editing = true; render(); };
+        return;
+      }
+
+      const isNum = q.type === 'number';
+      v.innerHTML = head + `
+        <form id="f" autocomplete="off">
+          <input id="a" maxlength="60" ${isNum ? 'inputmode="decimal" placeholder="Число"' : 'placeholder="Ваш ответ"'} enterkeyhint="send" />
+          <button id="b">Ответить</button>
+          <div class="err" id="e"></div>
+        </form>`;
+      const inp = $('a');
+      if (editing && mine != null) inp.value = typeof mine === 'number' ? String(mine) : mine;
+      inp.focus();
+      $('f').onsubmit = async (ev) => {
+        ev.preventDefault();
+        const val = inp.value.trim();
+        if (!val) return ($('e').textContent = isNum ? 'Введите число' : 'Введите ответ');
+        $('b').disabled = true;
+        $('e').textContent = '';
+        try {
+          const j = await post({ action: 'answer', qid: q.id, value: val });
+          editing = false;
+          data.mine = j.value;
+          render(true);
+        } catch (err) {
+          $('e').textContent = err.message;
+          $('b').disabled = false;
+        }
+      };
+    }
+
+    async function load() {
+      try {
+        const r = await fetch('/api/quest?view=play&pid=' + encodeURIComponent(pid), { cache: 'no-store' });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error);
+        if (!j.joined && !joining) {
+          joining = true;
+          post({ action: 'join' }).catch(() => {}).finally(() => (joining = false));
+        }
+        if (data && (data.state.idx !== j.state.idx || data.state.phase !== j.state.phase)) editing = false;
+        data = j;
+        render();
+      } catch {}
+    }
+
+    load();
+    setInterval(load, 1500);
+  </script>
+</body>
+</html>

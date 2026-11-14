@@ -25,7 +25,8 @@
       const weight = size > 34 ? 800 : size > 24 ? 700 : 600;
       const box = measure(t.label, size, weight);
       const badge = t.count > 1 ? measure('×' + t.count, Math.max(11, size * 0.32), 600).w + 4 : 0;
-      return { text: t.label, count: t.count, size, weight, w: box.w + badge, h: box.h, x: 0, y: 0 };
+      const tick = t.correct ? measure('✓ ', size, weight).w : 0;
+      return { text: t.label, count: t.count, correct: !!t.correct, size, weight, w: box.w + badge + tick, h: box.h, x: 0, y: 0 };
     });
     const placed = [];
     for (const w of words) {
@@ -114,7 +115,7 @@
 
       b.words.forEach((w, wi) => {
         const s = document.createElement('span');
-        s.className = 'cloud-word';
+        s.className = 'cloud-word' + (w.correct ? ' is-correct' : '');
         s.style.left = w.x + 'px';
         s.style.top = w.y + 'px';
         s.style.fontSize = w.size + 'px';
