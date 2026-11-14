@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a1030" />
+  <title>Что для вас Франция?</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main class="vote">
+    <div class="flag"><i></i><i></i><i></i></div>
+
+    <section id="formView">
+      <h1>Что для вас Франция?</h1>
+      <p>Три слова или понятия, которые первыми приходят в голову.</p>
+      <form id="form" autocomplete="off">
+        <input name="w" maxlength="40" placeholder="Например, круассан" enterkeyhint="next" autofocus />
+        <input name="w" maxlength="40" placeholder="Например, революция" enterkeyhint="next" />
+        <input name="w" maxlength="40" placeholder="Ещё одно слово" enterkeyhint="send" />
+        <button type="submit" id="btn">Отправить</button>
+        <div class="err" id="err"></div>
+      </form>
+    </section>
+
+    <section class="done" id="doneView" hidden>
+      <div class="big">🥐</div>
+      <h1>Merci!</h1>
+      <p id="doneText">Ответ принят. Смотрите на экран.</p>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const inputs = [...document.querySelectorAll('input[name=w]')];
+    const KEY = 'fr-voted';
+
+    function done(text) {
+      $('formView').hidden = true;
+      $('doneView').hidden = false;
+      if (text) $('doneText').textContent = text;
+    }
+
+    // Проверяем, не завершён ли опрос и не голосовал ли человек уже в этом опросе.
+    fetch('/api/state', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((s) => {
+        let voted = null;
+        try { voted = localStorage.getItem(KEY); } catch {}
+        if (s.finished) done('Опрос уже завершён. Результаты на экране.');
+        else if (voted && voted === s.pollId) done();
+        window.__pollId = s.pollId;
+      })
+      .catch(() => {});
+
+    inputs.forEach((inp, i) =>
+      inp.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && i < inputs.length - 1) {
+          e.preventDefault();
+          inputs[i + 1].focus();
+        }
+      }),
+    );
+
+    $('form').onsubmit = async (e) => {
+      e.preventDefault();
+      const words = inputs.map((i) => i.value.trim()).filter(Boolean);
+      if (!words.length) {
+        $('err').textContent = 'Напишите хотя бы одно слово';
+        return;
+      }
+      $('btn').disabled = true;
+      $('err').textContent = '';
+      try {
+        const r = await fetch('/api/answer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ words }),
+        });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || 'Не получилось отправить');
+        try { localStorage.setItem(KEY, window.__pollId || '0'); } catch {}
+        done();
+      } catch (err) {
+        $('err').textContent = err.message;
+        $('btn').disabled = false;
+      }
+    };
+  </script>
+</body>
+</html>

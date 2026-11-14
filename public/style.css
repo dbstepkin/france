@@ -1,0 +1,130 @@
+:root {
+  --bg: #0a1030;
+  --bg2: #111a4a;
+  --ink: #f4f1ea;
+  --muted: #9aa3c7;
+  --blue: #2f5bea;
+  --red: #ef4155;
+  --line: rgba(255, 255, 255, 0.14);
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: radial-gradient(120% 90% at 50% 0%, var(--bg2), var(--bg) 60%);
+  background-color: var(--bg);
+  color: var(--ink);
+  font-family: Manrope, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+h1 { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; margin: 0; line-height: 1.08; }
+.flag { display: flex; height: 6px; width: 96px; border-radius: 3px; overflow: hidden; }
+.flag i { flex: 1; }
+.flag i:nth-child(1) { background: var(--blue); }
+.flag i:nth-child(2) { background: #fff; }
+.flag i:nth-child(3) { background: var(--red); }
+
+button {
+  font: inherit; font-weight: 700; color: #fff; cursor: pointer;
+  border: 0; border-radius: 14px; padding: 16px 28px; font-size: 18px;
+  background: linear-gradient(135deg, var(--blue), #4f7bff);
+  box-shadow: 0 10px 30px rgba(47, 91, 234, 0.35);
+  transition: transform 0.12s, opacity 0.12s;
+}
+button:hover { transform: translateY(-1px); }
+button:active { transform: translateY(1px); }
+button:disabled { opacity: 0.5; cursor: default; transform: none; }
+button.ghost {
+  background: transparent; box-shadow: none; color: var(--muted);
+  border: 1px solid var(--line); padding: 8px 14px; font-size: 13px; font-weight: 600; border-radius: 10px;
+}
+button.ghost:hover { color: var(--ink); }
+.err { color: #ff9aa5; min-height: 1.4em; font-size: 15px; }
+[hidden] { display: none !important; }
+
+/* ---------- экран ведущего ---------- */
+.host { height: 100%; display: flex; flex-direction: column; }
+.collect {
+  flex: 1; display: grid; grid-template-columns: 1.15fr 1fr; gap: 6vw;
+  align-items: center; padding: 5vh 7vw; min-height: 0;
+}
+.collect h1 { font-size: clamp(44px, 6.4vw, 112px); margin: 26px 0 22px; }
+.collect .lead { font-size: clamp(18px, 1.7vw, 28px); color: var(--muted); max-width: 30ch; line-height: 1.4; }
+.counter { margin: 5vh 0 3vh; display: flex; align-items: baseline; gap: 14px; }
+.counter b { font-size: clamp(48px, 5vw, 88px); font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+.counter span { color: var(--muted); font-size: clamp(16px, 1.4vw, 22px); }
+.qrbox { display: flex; flex-direction: column; align-items: center; gap: 22px; }
+.qr {
+  background: #fff; border-radius: 28px; padding: 22px;
+  width: min(38vw, 62vh); aspect-ratio: 1; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+}
+.qr svg { display: block; width: 100%; height: 100%; }
+.url { font-size: clamp(16px, 1.5vw, 24px); color: var(--muted); word-break: break-all; text-align: center; }
+.url b { color: var(--ink); font-weight: 700; }
+
+.loading { flex: 1; display: grid; place-items: center; text-align: center; }
+.loading p { font-size: clamp(20px, 2vw, 32px); color: var(--muted); margin-top: 28px; }
+.spinner {
+  width: 64px; height: 64px; margin: 0 auto; border-radius: 50%;
+  border: 5px solid var(--line); border-top-color: #fff; animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.result { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.result header {
+  display: flex; align-items: center; justify-content: space-between; gap: 20px;
+  padding: 2.4vh 3vw 0.6vh;
+}
+.result header h1 { font-size: clamp(22px, 2.6vw, 44px); }
+.result header .meta { color: var(--muted); font-size: 14px; display: flex; align-items: center; gap: 16px; white-space: nowrap; }
+.stage { flex: 1; position: relative; overflow: hidden; margin: 0 1.5vw 2vh; min-height: 0; }
+
+/* ---------- облако ---------- */
+.cloud-root { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform-origin: 0 0; }
+.cloud-cluster { position: absolute; width: 0; height: 0; }
+.cloud-blob {
+  position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--c) 20%, transparent), transparent);
+  pointer-events: none;
+}
+.is-center .cloud-blob { background: radial-gradient(closest-side, color-mix(in srgb, var(--c) 30%, transparent), transparent); }
+.cloud-name {
+  position: absolute; left: 0; transform: translate(-50%, -50%); white-space: nowrap;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--c); opacity: 0.6;
+}
+.cloud-word {
+  position: absolute; white-space: nowrap; line-height: 1.1; color: var(--c);
+  transform: translate(-50%, -50%); opacity: 0;
+  animation: pop 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.2) forwards;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.35);
+}
+.cloud-word sup { margin-left: 4px; font-weight: 600; opacity: 0.6; vertical-align: super; line-height: 0; }
+@keyframes pop {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* ---------- телефон ---------- */
+.vote { min-height: 100%; max-width: 520px; margin: 0 auto; padding: 36px 22px 40px; display: flex; flex-direction: column; }
+.vote h1 { font-size: 40px; margin: 22px 0 10px; }
+.vote p { color: var(--muted); font-size: 17px; line-height: 1.45; margin: 0 0 26px; }
+.vote form { display: flex; flex-direction: column; gap: 14px; }
+.vote input {
+  font: inherit; font-size: 19px; color: var(--ink); width: 100%;
+  background: rgba(255, 255, 255, 0.07); border: 1.5px solid var(--line);
+  border-radius: 14px; padding: 17px 18px; outline: none;
+}
+.vote input::placeholder { color: #6f79a3; }
+.vote input:focus { border-color: #7fa0ff; background: rgba(255, 255, 255, 0.1); }
+.vote button { margin-top: 8px; width: 100%; }
+.vote .done { margin: auto 0; text-align: center; }
+.vote .done .big { font-size: 64px; }
+.vote .done h1 { margin: 12px 0; }
+
+@media (max-width: 800px) {
+  .collect { grid-template-columns: 1fr; gap: 4vh; text-align: center; }
+  .collect .lead { margin: 0 auto; }
+  .collect .flag { margin: 0 auto; }
+  .counter { justify-content: center; }
+  .qr { width: min(70vw, 40vh); }
+}
