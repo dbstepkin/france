@@ -25,6 +25,7 @@
     <div class="qfoot">
       <span class="hint" id="hint"></span>
       <span class="err" id="err"></span>
+      <button class="ghost" id="restart" title="Стереть все ответы и вернуться к QR-коду">↺ Начать заново</button>
       <button class="ghost" id="prev" hidden>← Назад</button>
       <button class="ghost" id="reopen" hidden>Открыть ответы снова</button>
       <button id="primary" hidden></button>
@@ -233,6 +234,9 @@
       if (op) control(op);
     };
     $('prev').onclick = () => control('prev');
+    $('restart').onclick = () => {
+      if (confirm('Начать викторину с нуля? Все ответы будут стёрты, участники вернутся на стартовый экран.')) control('restart');
+    };
     $('reopen').onclick = () => control('reopen');
     addEventListener('keydown', (e) => {
       if (e.target.closest('input,textarea')) return;
