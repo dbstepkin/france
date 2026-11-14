@@ -6,6 +6,6 @@
     "dev": "node scripts/dev.mjs"
   },
   "dependencies": {
-    "@vercel/blob": "^1.1.1"
+    "@vercel/blob": "2.8.2"
   }
 }
