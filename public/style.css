@@ -128,3 +128,16 @@ button.ghost:hover { color: var(--ink); }
   .counter { justify-content: center; }
   .qr { width: min(70vw, 40vh); }
 }
+
+/* ---------- переключатель «Опрос | Викторина» на экранах ведущего ---------- */
+.modes {
+  display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line); flex: none;
+}
+.modes a {
+  color: var(--muted); text-decoration: none; font-weight: 700; font-size: 14px;
+  padding: 7px 14px; border-radius: 9px; white-space: nowrap;
+}
+.modes a:hover { color: var(--ink); }
+.modes a.on { background: rgba(255, 255, 255, 0.14); color: var(--ink); }
+.modes.floating { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 10; }

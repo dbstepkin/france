@@ -153,3 +153,15 @@
   .qbar .mini .qrs { display: none; }
   .qcard .row { grid-template-columns: 1fr; }
 }
+
+/* номера вопросов */
+.qnums { display: flex; gap: 6px; flex-wrap: wrap; }
+.qnums button {
+  width: 42px; height: 42px; padding: 0; border-radius: 12px; font-size: 17px; font-weight: 800;
+  background: rgba(255, 255, 255, 0.06); color: var(--muted); box-shadow: none;
+  border: 1px solid var(--line);
+}
+.qnums button:hover { color: var(--ink); transform: none; border-color: rgba(255, 255, 255, 0.4); }
+.qnums button.done { color: var(--ok); border-color: rgba(95, 224, 161, 0.45); }
+.qnums button.on { background: linear-gradient(135deg, var(--blue), #4f7bff); color: #fff; border-color: transparent; }
+.reveal .correct { font-size: clamp(18px, 1.6vw, 28px); padding: 8px 20px; }

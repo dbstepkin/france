@@ -12,12 +12,12 @@
 </head>
 <body>
   <div class="qhost">
-    <div class="qbar" id="bar" hidden>
-      <div class="flag"><i></i><i></i><i></i></div>
-      <span class="progress" id="progress"></span>
+    <div class="qbar" id="bar">
+      <nav class="modes"><a href="/">Опрос</a><a href="/quest" class="on">Викторина</a></nav>
+      <nav class="qnums" id="nums" aria-label="Вопросы"></nav>
       <span class="count" id="barCount"></span>
       <span class="spacer"></span>
-      <div class="mini"><span><b id="hostShort"></b>/quest/play</span><div class="qrs" id="qrSmall"></div></div>
+      <div class="mini" id="mini"><span><b id="hostShort"></b>/quest/play</span><div class="qrs" id="qrSmall"></div></div>
     </div>
 
     <main class="qmain" id="main"></main>
@@ -66,8 +66,8 @@
       const total = questions.length;
       const key = [state.run, state.idx, state.phase, q && q.id, result ? 1 : 0].join('|');
 
-      $('bar').hidden = state.phase === 'lobby';
-      $('progress').textContent = q && state.phase !== 'end' ? `Вопрос ${state.idx + 1} из ${total}` : '';
+      $('mini').hidden = state.phase === 'lobby';
+      renderNums(state, questions, data.done || []);
       $('barCount').innerHTML =
         state.phase === 'question' || state.phase === 'reveal'
           ? `<b>${count}</b> ${plural(count, 'ответ', 'ответа', 'ответов')} · ${players} ${plural(players, 'участник', 'участника', 'участников')}`
@@ -79,11 +79,11 @@
       const p = $('primary');
       p.hidden = false;
       if (state.phase === 'lobby') p.textContent = total ? 'Начать викторину' : 'Добавьте вопросы в админке';
-      else if (state.phase === 'question') p.textContent = 'Показать ответы';
+      else if (state.phase === 'question') p.textContent = 'Завершить';
       else if (state.phase === 'reveal') p.textContent = state.idx + 1 >= total ? 'Завершить' : 'Следующий вопрос →';
       else p.textContent = 'Начать заново';
       p.disabled = state.phase === 'lobby' && !total;
-      $('hint').innerHTML = state.phase === 'lobby' ? '<a href="/quest/admin" style="color:inherit">Редактировать вопросы</a>' : 'Пробел — следующий шаг';
+      $('hint').innerHTML = state.phase === 'lobby' ? '<a href="/quest/admin" style="color:inherit">Редактировать вопросы</a>' : 'Номер вверху — открыть вопрос · Пробел — следующий шаг';
 
       if (!force && key === shownKey) {
         // обновляем только живые счётчики, не перерисовывая экран
@@ -173,7 +173,25 @@
       }
     }
 
-    async function control(op) {
+    // номера вопросов вверху: клик — показать этот вопрос на экране и телефонах
+    function renderNums(state, questions, done) {
+      const box = $('nums');
+      const live = state.phase === 'question' || state.phase === 'reveal';
+      const sig = questions.map((q, i) => [i === state.idx && live, done[i], q.type].join()).join('|');
+      if (box.dataset.sig === sig && box.children.length === questions.length) return;
+      box.dataset.sig = sig;
+      box.innerHTML = '';
+      questions.forEach((q, i) => {
+        const b = document.createElement('button');
+        b.textContent = i + 1;
+        b.className = (i === state.idx && live ? 'on ' : '') + (done[i] ? 'done' : '');
+        b.title = (q.type === 'number' ? 'Число: ' : 'Слово: ') + q.text + (done[i] ? ' (есть итоги)' : '');
+        b.onclick = () => control('goto', i);
+        box.appendChild(b);
+      });
+    }
+
+    async function control(op, idx) {
       if (busy) return;
       busy = true;
       document.querySelectorAll('.qfoot button').forEach((b) => (b.disabled = true));
@@ -185,7 +203,7 @@
         const r = await fetch('/api/quest', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'control', op }),
+          body: JSON.stringify({ action: 'control', op, idx }),
         });
         const j = await r.json();
         if (!r.ok) throw new Error(j.error);
