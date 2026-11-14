@@ -22,7 +22,10 @@ http
     try {
       const url = new URL(req.url, `http://localhost:${port}`);
       if (url.pathname.startsWith('/api/')) {
-        const file = path.join(root, 'api', url.pathname.slice(5) + '.js');
+        // как rewrites в vercel.json: /api/<r> -> /api/main?r=<r>
+        const name = url.pathname.slice(5);
+        if (name !== 'main') url.searchParams.set('r', name);
+        const file = path.join(root, 'api', 'main.js');
         const mod = await import(pathToFileURL(file).href);
         const handler = mod[req.method];
         if (!handler) return res.writeHead(405).end();
