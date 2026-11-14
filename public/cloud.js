@@ -21,7 +21,7 @@
 
   function layoutCluster(cluster, fontSize) {
     const words = cluster.terms.map((t) => {
-      const size = fontSize(t.count);
+      const size = fontSize(t.score ?? t.count);
       const weight = size > 34 ? 800 : size > 24 ? 700 : 600;
       const box = measure(t.label, size, weight);
       const badge = t.count > 1 ? measure('×' + t.count, Math.max(11, size * 0.32), 600).w + 4 : 0;
@@ -55,11 +55,14 @@
     if (!cloud || !cloud.clusters.length || !W || !H) return;
 
     const all = cloud.clusters.flatMap((c) => c.terms);
-    const maxCount = Math.max(...all.map((t) => t.count));
-    const fontSize = (c) => (maxCount <= 1 ? 30 : 20 + 56 * Math.sqrt((c - 1) / (maxCount - 1)));
+    // Размер шрифта — по взвешенному баллу (1.2 / 1 / 0.8 за первое / второе / третье поле).
+    const sc = (t) => t.score ?? t.count;
+    const maxS = Math.max(...all.map(sc));
+    const minS = Math.min(...all.map(sc));
+    const fontSize = (s) => (maxS - minS < 0.01 ? 30 : 20 + 56 * Math.sqrt((s - minS) / (maxS - minS)));
 
     // Центр — группа, где находится понятие-лидер.
-    const clusters = cloud.clusters.slice().sort((a, b) => b.terms[0].count - a.terms[0].count || b.total - a.total);
+    const clusters = cloud.clusters.slice().sort((a, b) => sc(b.terms[0]) - sc(a.terms[0]) || b.total - a.total);
     const boxes = clusters.map((c, i) => Object.assign(layoutCluster(c, fontSize), { color: PALETTE[i % PALETTE.length] }));
 
     const aspect = Math.min(2.4, Math.max(0.6, W / H));

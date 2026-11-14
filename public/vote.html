@@ -18,9 +18,9 @@
       <h1>Что для вас Франция?</h1>
       <p>Три слова или понятия, которые первыми приходят в голову.</p>
       <form id="form" autocomplete="off">
-        <input name="w" maxlength="40" placeholder="Например, круассан" enterkeyhint="next" autofocus />
-        <input name="w" maxlength="40" placeholder="Например, революция" enterkeyhint="next" />
-        <input name="w" maxlength="40" placeholder="Ещё одно слово" enterkeyhint="send" />
+        <input name="w" maxlength="40" placeholder="Первое слово" enterkeyhint="next" autofocus />
+        <input name="w" maxlength="40" placeholder="Второе слово" enterkeyhint="next" />
+        <input name="w" maxlength="40" placeholder="Третье слово" enterkeyhint="send" />
         <button type="submit" id="btn">Отправить</button>
         <div class="err" id="err"></div>
       </form>
@@ -67,8 +67,8 @@
 
     $('form').onsubmit = async (e) => {
       e.preventDefault();
-      const words = inputs.map((i) => i.value.trim()).filter(Boolean);
-      if (!words.length) {
+      const words = inputs.map((i) => i.value.trim());
+      if (!words.some(Boolean)) {
         $('err').textContent = 'Напишите хотя бы одно слово';
         return;
       }
